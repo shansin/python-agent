@@ -9,8 +9,7 @@ import asyncio
 
 load_dotenv(override=True)
 
-
-#pushover example
+#pushover setup
 pushover_user = os.getenv("PUSHOVER_USER")
 pushover_token = os.getenv("PUSHOVER_TOKEN")
 pushover_url = "https://api.pushover.net/1/messages.json"
@@ -42,7 +41,7 @@ def chat_completion_example():
      push(f"Finished request for model: {model}")
 
 #agents example (simple)
-async def agents_simple_example():
+async def simple_agent_example():
     client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     agent = Agent(name="JokePusher", instructions="You are a joke teller.", model=gpt_model)
@@ -53,20 +52,25 @@ async def agents_simple_example():
 
 
 #agents example (multiple agents)
-async def agents_multiple_example():
+#traces at: https://platform.openai.com/logs?api=traces 
+async def multiple_agents_example():
     client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
 
-    instructions1 = "You are a sales agent working for ComplAI, \
-    a company that provides a SaaS tool for ensuring SOC2 compliance and preparing for audits, powered by AI. \
+    instructions1 = "You are a sales agent working for ShanUP 3D, \
+    a company that provides a 3D printing solutions powered by AI. \
     You write professional, serious cold emails."
 
-    instructions2 = "You are a humorous, engaging sales agent working for ComplAI, \
-    a company that provides a SaaS tool for ensuring SOC2 compliance and preparing for audits, powered by AI. \
+    instructions2 = "You are a humorous, engaging sales agent working for ShanUP 3D, \
+    a company that provides a 3D printing solutions powered by AI. \
     You write witty, engaging cold emails that are likely to get a response."
 
-    instructions3 = "You are a busy sales agent working for ComplAI, \
-    a company that provides a SaaS tool for ensuring SOC2 compliance and preparing for audits, powered by AI. \
+    instructions3 = "You are a busy sales agent working for ShanUP 3D, \
+    a company that provides a 3D printing solutions powered by AI. \
     You write concise, to the point cold emails."
+
+    instructions4 = "You pick the best cold sales email from the given options. \
+    Imagine you are a customer and pick the one you are most likely to respond to. \
+    Do not give an explanation; reply with the selected email only."
     
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -78,8 +82,7 @@ async def agents_multiple_example():
 
     prompt = "Write a cold email to a CTO of a mid-sized tech company introducing ShanUP (a 3D printing solutions company) and its benefits."
 
-    #result = await Runner.run(sales_agent1, prompt)
-    with trace("Parallel cold emails"):
+    with trace("Parallel cold emails and evaluation"):
         results = await asyncio.gather(
             Runner.run(sales_agent1, prompt),
             Runner.run(sales_agent2, prompt),
@@ -89,11 +92,25 @@ async def agents_multiple_example():
 
         for output in outputs:
             print(output + "\n\n")
+    
+        sales_picker_agent = Agent(
+        name="sales_picker",
+        instructions=instructions4,
+        model=llama_model)
+
+        combined_prompt = "Here are some cold sales email options:\n\n"
+        for i, output in enumerate(outputs):
+            combined_prompt += f"Option {i+1}:\n{output}\n\n"
+        combined_prompt += "Which option would you respond to? Reply with the selected email only."
+
+        final_result = await Runner.run(sales_picker_agent, combined_prompt)
+        print("Best cold email:\n")
+        print(final_result.final_output)
 
 async def main():
     #chat_completion_example()
-    #await agents_simple_example()
-    await agents_multiple_example()
+    #await simple_agent_example()
+    await multiple_agents_example()
 
 
 if __name__ == "__main__":
