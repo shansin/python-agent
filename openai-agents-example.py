@@ -1,8 +1,9 @@
+from email.mime import message
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
-from agents import Agent, Runner, trace
-from agents import OpenAIChatCompletionsModel
+from agents import Agent, Runner, trace, OpenAIChatCompletionsModel, input_guardrail, GuardrailFunctionOutput
+from pydantic import BaseModel
 from openai import AsyncOpenAI
 from agents import function_tool
 from typing import Dict
@@ -11,14 +12,14 @@ import asyncio
 
 load_dotenv(override=True)
 
-#pushover setup
-pushover_user = os.getenv("PUSHOVER_USER")
-pushover_token = os.getenv("PUSHOVER_TOKEN")
-pushover_url = "https://api.pushover.net/1/messages.json"
 
 #push notification function
 def push_notification(message):
     import requests
+    #pushover setup
+    pushover_user = os.getenv("PUSHOVER_USER")
+    pushover_token = os.getenv("PUSHOVER_TOKEN")
+    pushover_url = "https://api.pushover.net/1/messages.json"
     print(f"Push notificaiton to phone: {message}")
     payload = {"user": pushover_user, "token": pushover_token, "message": message}
     requests.post(pushover_url, data=payload)
@@ -218,7 +219,7 @@ def send_cold_sales_email(body: str):
     #above line acts as description for the tool to llm
     send_email(to="mailme.shantanu@gmail.com", sub="Cold Sales Email", body=body, type="text/plain")
 
-async def multiple_agents_as_tool_and_handoff_example():
+async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
     client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -269,35 +270,52 @@ async def multiple_agents_as_tool_and_handoff_example():
     agent_tool2 = sales_agent2.as_tool(tool_name="sales_agent2", tool_description=description)
     agent_tool3 = sales_agent3.as_tool(tool_name="sales_agent3", tool_description=description)
 
+    class NameCheckOutput(BaseModel):
+        is_name_in_message: bool
+        name: str
+
+    guardrail_agent = Agent( 
+        name="Name check",
+        instructions="Check if the user is including someone's personal name in what they want you to do.",
+        output_type=NameCheckOutput,
+        model=llama_model
+    )
+
+    @input_guardrail
+    async def gaurdrail_against_name(ctx, agent, message):
+        result = await Runner.run(guardrail_agent, message, context=ctx.context)
+        is_name_in_message = result.final_output.is_name_in_message
+        return GuardrailFunctionOutput(output_info={"found_name": result.final_output},tripwire_triggered= is_name_in_message)
+
     sales_manager_instructions = """
         You are a Sales Manager at ShanUP 3D solutions. Your goal is to find the single best cold sales email using the sales_agent tools.
-
+ 
         Follow these steps carefully:
         1. Generate Drafts: Use all three sales_agent tools to generate three different email drafts. Do not proceed until all three drafts are ready.
-
+        
         2. Evaluate and Select: Review the drafts and choose the single best email using your judgment of which one is most effective.
         You can use the tools multiple times if you're not satisfied with the results from the first try.
-
+        
         3. Handoff for Sending: Pass ONLY the winning email draft to the 'Email Manager' agent. The Email Manager will take care of formatting and sending.
-
+        
         Crucial Rules:
         - You must use the sales agent tools to generate the drafts — do not write them yourself.
-        - You must hand off exactly ONE email to the Email Manager — never more than one."""
+        - You must hand off exactly ONE email to the Email Manager — never more than one.
+        """
     
     sales_manager = Agent(
         name="Sales Manager",
         instructions=sales_manager_instructions,
         tools=[agent_tool1, agent_tool2, agent_tool3],
         handoffs=[emailer_agent],
+        input_guardrails=[gaurdrail_against_name],
         model=gpt_model)
     
-    message = "Send out a cold sales email addressed to Dear CEO from Shantanu"
+    message = "Send out a cold sales email addressed to Dear CEO from Head of Business Development"
 
     with trace("Automated SDR"):
         result = await Runner.run(sales_manager, message)
         print(result.final_output)
-
-
 
 @function_tool
 def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
@@ -309,13 +327,13 @@ def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
 async def main():
     #push_notification("Starting OpenAI agent examples")
     #send_email(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
-    send_email_resend(to="dixit.upasanaitbhu@gmail.com", sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    #send_email_resend(to="dixit.upasanaitbhu@gmail.com", sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
     #chat_completion_example()
     #await simple_agent_example()
     #await simple_agent_streaming_example()
     #await multiple_agents_example()
     #await multiple_agents_as_tool_example()
-    #await multiple_agents_as_tool_and_handoff_example()
+    await multiple_agents_as_tool_and_handoff_and_guardrail_example()
 
 
 if __name__ == "__main__":
