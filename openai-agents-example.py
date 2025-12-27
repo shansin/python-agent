@@ -61,6 +61,31 @@ def send_email(to: str, sub: str, body: str, type: str) -> dict:
     sg.client.mail.send.post(request_body=mail)
     return {"status": "success"}
 
+def send_email_resend(to: str, sub: str, from_name: str, from_email: str, body: str) -> dict:
+    import requests
+    # Set up email sender, recipient, and content
+    # Resend API headers and payload
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('RESEND_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "from": f"{from_name} <{from_email}>",
+        "to": [to],
+        "subject": sub,
+        "html": f"<p>{body}</p>"  # Body wrapped in <p> tags for HTML format
+    }
+    
+    # Send email using Resend API
+    response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
+    
+    # Check if the request was successful
+    if response.status_code == 200:
+        return {"status": "success"}
+    else:
+        return {"status": "failure", "message": response.text}
+
 #agents example (simple streaming)
 async def simple_agent_streaming_example():
     from openai.types.responses import ResponseTextDeltaEvent
@@ -284,12 +309,13 @@ def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
 async def main():
     #push_notification("Starting OpenAI agent examples")
     #send_email(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
+    send_email_resend(to="dixit.upasanaitbhu@gmail.com", sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
     #chat_completion_example()
     #await simple_agent_example()
     #await simple_agent_streaming_example()
     #await multiple_agents_example()
     #await multiple_agents_as_tool_example()
-    await multiple_agents_as_tool_and_handoff_example()
+    #await multiple_agents_as_tool_and_handoff_example()
 
 
 if __name__ == "__main__":
