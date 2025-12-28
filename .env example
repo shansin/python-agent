@@ -8,3 +8,6 @@ PUSHOVER_TOKEN=xxxx
 
 SENDGRID_API_KEY=xxxx
 RESEND_API_KEY=xxxx
+
+OLLAMA_BASE_URL="http://localhost:11434/v1"
+SEARXNG_API_URL="http://localhost:8081"

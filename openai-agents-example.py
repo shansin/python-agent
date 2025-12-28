@@ -30,7 +30,7 @@ def chat_completion_example():
      question = "Write a story about a lonely computer in the style of Dr. Seuss."
      
      response = openai.chat.completions.create(
-         model="llama3.1:8b",
+         model="gpt-oss:20b",
          messages=[{"role": "user", "content": question}],
          temperature=0.7,)
 
@@ -318,17 +318,39 @@ def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
     return {"status": "success"}
 
 
+def searxng_search(search: str, page_no: int):
+    import requests
+    from pprint import pprint
+
+    endpoint = f"{os.getenv("SEARXNG_API_URL")}/search"
+
+    params = {
+        "q": search,
+        "format": "json",
+        "categories": "general",
+        "language": "en",
+        "safesearch": 0,
+        "pageno": page_no
+    }
+
+    response = requests.get(endpoint, params=params, timeout=10)
+    response.raise_for_status()
+    results = response.json().get("results", [])
+    pprint(results)
+    return results
+
 async def main():
     #push_notification("Starting OpenAI agent examples")
     #send_email(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
     #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    searxng_search("Top Agentic AI frameworks", 1)
     #chat_completion_example()
     #await simple_agent_example()
     #await simple_agent_streaming_example()
     #await multiple_agents_example()
     #await multiple_agents_as_tool_example()
-    await multiple_agents_as_tool_and_handoff_and_guardrail_example()
-
+    #await multiple_agents_as_tool_and_handoff_and_guardrail_example()
+    
 
 if __name__ == "__main__":
     asyncio.run(main())
