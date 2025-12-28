@@ -7,11 +7,11 @@ from pydantic import BaseModel
 from openai import AsyncOpenAI
 from agents import function_tool
 from typing import Dict
-
 import asyncio
 
 load_dotenv(override=True)
 
+ollama_base_url = os.getenv("OLLAMA_BASE_URL")
 
 #push notification function
 def push_notification(message):
@@ -26,24 +26,21 @@ def push_notification(message):
 
 #simple chat completion example
 def chat_completion_example():
-     openai = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+     openai = OpenAI(base_url=ollama_base_url, api_key="ollama")
      question = "Write a story about a lonely computer in the style of Dr. Seuss."
-     model = "llama3.1:8b"
-     print(f"--- Model: {model} ---")
-
+     
      response = openai.chat.completions.create(
-         model=model,
+         model="llama3.1:8b",
          messages=[{"role": "user", "content": question}],
          temperature=0.7,)
 
      print(response.choices[0].message.content)
 
-
 #agents example (simple)
 async def simple_agent_example():
-    client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
-    gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
-    agent = Agent(name="JokePusher", instructions="You are a joke teller.", model=gpt_model)
+    client = AsyncOpenAI(base_url= ollama_base_url, api_key="ollama")
+    llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
+    agent = Agent(name="JokePusher", instructions="You are a joke teller.", model=llama_model)
 
     with trace("Telling a joke"):
         result = await Runner.run(agent, "Tell me a joke about Autonomous AI agents")
@@ -62,10 +59,9 @@ def send_email(to: str, sub: str, body: str, type: str) -> dict:
     sg.client.mail.send.post(request_body=mail)
     return {"status": "success"}
 
-def send_email_resend(to: str, sub: str, from_name: str, from_email: str, body: str) -> dict:
+def send_email_resend(to: [str], sub: str, from_name: str, from_email: str, body: str) -> dict:
     import requests
-    # Set up email sender, recipient, and content
-    # Resend API headers and payload
+    # from_email has to be configured on dns, xxx@shanup.com is enabled
     headers = {
         "Authorization": f"Bearer {os.environ.get('RESEND_API_KEY')}",
         "Content-Type": "application/json"
@@ -73,7 +69,7 @@ def send_email_resend(to: str, sub: str, from_name: str, from_email: str, body: 
     
     payload = {
         "from": f"{from_name} <{from_email}>",
-        "to": [to],
+        "to": to,
         "subject": sub,
         "html": f"<p>{body}</p>"  # Body wrapped in <p> tags for HTML format
     }
@@ -82,16 +78,17 @@ def send_email_resend(to: str, sub: str, from_name: str, from_email: str, body: 
     response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
     
     # Check if the request was successful
-    if response.status_code == 200:
+    if response.ok:
         return {"status": "success"}
     else:
         return {"status": "failure", "message": response.text}
 
 #agents example (simple streaming)
+#traces at: https://platform.openai.com/logs?api=traces 
 async def simple_agent_streaming_example():
     from openai.types.responses import ResponseTextDeltaEvent
 
-    client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     agent = Agent(name="JokePusher", instructions="You are a joke teller.", model=gpt_model)
 
@@ -101,7 +98,6 @@ async def simple_agent_streaming_example():
         async for event in result.stream_events():
             if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                 print(event.data.delta, end="", flush=True)
-
 
 #agents example (multiple agents)
 #traces at: https://platform.openai.com/logs?api=traces 
@@ -123,14 +119,10 @@ async def multiple_agents_example():
     a company that provides a 3D printing solutions powered by AI. \
     You write concise, to the point cold emails."
 
-    instructions4 = "You pick the best cold sales email from the given options. \
-    Imagine you are a customer and pick the one you are most likely to respond to. \
-    Do not give an explanation; reply with the selected email only."
-
     sales_agent1 = Agent(name="ProfessionalAgent", instructions=instructions1, model=gpt_model)
     sales_agent2 = Agent(name="HumorousAgent", instructions=instructions2, model=deepseek_model)
     sales_agent3 = Agent(name="ConciseAgent", instructions=instructions3, model=llama_model)
-
+    
     prompt = "Write a cold email to a CTO of a mid-sized tech company introducing ShanUP (a 3D printing solutions company) and its benefits."
 
     with trace("Parallel cold emails and evaluation"):
@@ -144,6 +136,10 @@ async def multiple_agents_example():
         for output in outputs:
             print(output + "\n\n")
     
+        instructions4 = "You pick the best cold sales email from the given options. \
+        Imagine you are a customer and pick the one you are most likely to respond to. \
+        Do not give an explanation; reply with the selected email only."
+        
         sales_picker_agent = Agent(
         name="sales_picker",
         instructions=instructions4,
@@ -161,7 +157,7 @@ async def multiple_agents_example():
 #agents example (multiple agents as tool)
 #traces at: https://platform.openai.com/logs?api=traces 
 async def multiple_agents_as_tool_example():
-    client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
@@ -178,10 +174,9 @@ async def multiple_agents_as_tool_example():
     a company that provides a 3D printing solutions powered by AI. \
     You write concise, to the point cold emails."
 
-    sales_agent1 = Agent(name="ProfessionalAgent", instructions=instructions1, model=gpt_model)
-    sales_agent2 = Agent(name="HumorousAgent", instructions=instructions2, model=gpt_model)
-    sales_agent3 = Agent(name="ConciseAgent", instructions=instructions3, model=gpt_model)
-
+    sales_agent1 = Agent(name="ProfessionalAgent", instructions=instructions1, model=llama_model)
+    sales_agent2 = Agent(name="HumorousAgent", instructions=instructions2, model=llama_model)
+    sales_agent3 = Agent(name="ConciseAgent", instructions=instructions3, model=llama_model)
 
     description = "Write cold sales emails"
     tool1 = sales_agent1.as_tool(tool_name="sales_agent1", tool_description=description)
@@ -205,13 +200,12 @@ async def multiple_agents_as_tool_example():
         - You must send ONE email using the send_emailsend_cold_sales_email tool — never more than one.
         """
 
-    sales_manager_agent = Agent(name="SalesManager", instructions=instructions, model=gpt_model, tools=tools)
+    sales_manager_agent = Agent(name="SalesManager", instructions=instructions, model=llama_model, tools=tools)
     prompt = "Write a cold email to a CTO of a mid-sized tech company"
 
     with trace("Sales manager using sales agents as tools"):
         results = await Runner.run(sales_manager_agent, prompt)
         print(results.final_output)
-
 
 @function_tool
 def send_cold_sales_email(body: str):
@@ -220,34 +214,10 @@ def send_cold_sales_email(body: str):
     send_email(to="mailme.shantanu@gmail.com", sub="Cold Sales Email", body=body, type="text/plain")
 
 async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
-    client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
-
-    subject_instructions = "You can write a subject for a cold sales email. \
-    You are given a message and you need to write a subject for an email that is likely to get a response."
-    
-    subject_writer = Agent(name="Email subject writer", instructions=subject_instructions, model=gpt_model)
-    subject_tool = subject_writer.as_tool(tool_name="subject_writer", tool_description="Write a subject for a cold sales email")
-
-    html_instructions = "You can convert a text email body to an HTML email body. \
-    You are given a text email body which might have some markdown \
-    and you need to convert it to an HTML email body with simple, clear, compelling layout and design."
-
-    html_converter = Agent(name="Html email body converter", instructions=html_instructions, model=gpt_model)
-    html_converter_tool = html_converter.as_tool(tool_name="html_converter",tool_description="Convert a text email body to an HTML email body")
-
-    instructions ="You are an email formatter and sender. You receive the body of an email to be sent. \
-    You first use the subject_writer tool to write a subject for the email, then use the html_converter tool to convert the body to HTML. \
-    Finally, you use the send_html_email tool to send the email with the subject and HTML body."
-    
-    emailer_agent = Agent(
-        name="Email Manager",
-        instructions=instructions,
-        tools=[subject_tool, html_converter_tool, send_html_email],
-        model=gpt_model,
-        handoff_description="Convert an email to HTML and send it")
 
     instructions1 = "You are a sales agent working for ShanUP 3D, \
     a company that provides a 3D printing solutions powered by AI. \
@@ -278,7 +248,7 @@ async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
         name="Name check",
         instructions="Check if the user is including someone's personal name in what they want you to do.",
         output_type=NameCheckOutput,
-        model=llama_model
+        model=gpt_model
     )
 
     @input_guardrail
@@ -286,6 +256,30 @@ async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
         result = await Runner.run(guardrail_agent, message, context=ctx.context)
         is_name_in_message = result.final_output.is_name_in_message
         return GuardrailFunctionOutput(output_info={"found_name": result.final_output},tripwire_triggered= is_name_in_message)
+
+    subject_instructions = "You can write a subject for a cold sales email. \
+    You are given a message and you need to write a subject for an email that is likely to get a response."
+    
+    subject_writer = Agent(name="Email subject writer", instructions=subject_instructions, model=gpt_model)
+    subject_tool = subject_writer.as_tool(tool_name="subject_writer", tool_description="Write a subject for a cold sales email")
+
+    html_instructions = "You can convert a text email body to an HTML email body. \
+    You are given a text email body which might have some markdown \
+    and you need to convert it to an HTML email body with simple, clear, compelling layout and design."
+
+    html_converter = Agent(name="Html email body converter", instructions=html_instructions, model=gpt_model)
+    html_converter_tool = html_converter.as_tool(tool_name="html_converter",tool_description="Convert a text email body to an HTML email body")
+
+    instructions ="You are an email formatter and sender. You receive the body of an email to be sent. \
+    You first use the subject_writer tool to write a subject for the email, then use the html_converter tool to convert the body to HTML. \
+    Finally, you use the send_html_email tool to send the email with the subject and HTML body."
+    
+    emailer_agent = Agent(
+        name="Email Manager",
+        instructions=instructions,
+        tools=[subject_tool, html_converter_tool, send_html_email],
+        model=gpt_model,
+        handoff_description="Convert an email to HTML and send it")
 
     sales_manager_instructions = """
         You are a Sales Manager at ShanUP 3D solutions. Your goal is to find the single best cold sales email using the sales_agent tools.
@@ -313,7 +307,7 @@ async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
     
     message = "Send out a cold sales email addressed to Dear CEO from Head of Business Development"
 
-    with trace("Automated SDR"):
+    with trace("Automated Sales Manager"):
         result = await Runner.run(sales_manager, message)
         print(result.final_output)
 
@@ -327,7 +321,7 @@ def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
 async def main():
     #push_notification("Starting OpenAI agent examples")
     #send_email(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
-    #send_email_resend(to="dixit.upasanaitbhu@gmail.com", sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
     #chat_completion_example()
     #await simple_agent_example()
     #await simple_agent_streaming_example()
