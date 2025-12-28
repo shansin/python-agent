@@ -320,6 +320,7 @@ def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
 
 def searxng_search(search: str, page_no: int):
     import requests
+    import json
     from pprint import pprint
 
     endpoint = f"{os.getenv("SEARXNG_API_URL")}/search"
@@ -336,14 +337,32 @@ def searxng_search(search: str, page_no: int):
     response = requests.get(endpoint, params=params, timeout=10)
     response.raise_for_status()
     results = response.json().get("results", [])
-    pprint(results)
+    print(json.dumps(results, indent=4))
     return results
+
+#tutorial https://github.com/NirDiamant/agents-towards-production/blob/main/tutorials/agent-with-tavily-web-access/search-extract-crawl.ipynb
+def tavily_search(search: str, max_results: int):
+    from tavily import TavilyClient
+    import json
+    tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+    search_results = tavily_client.search(
+        query=search, 
+        max_results=max_results,
+        time_range="week",
+        include_raw_content=True,
+        #include_domains=["techcrunch.com"],
+        topic="news")
+        
+    print(json.dumps(search_results, indent=4))
+
+    return search_results
 
 async def main():
     #push_notification("Starting OpenAI agent examples")
     #send_email(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
     #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    searxng_search("Top Agentic AI frameworks", 1)
+    searxng_search("News in Bothell Washington", 1)
+    #tavily_search("News in Bothell Washington", 20)
     #chat_completion_example()
     #await simple_agent_example()
     #await simple_agent_streaming_example()
