@@ -337,7 +337,7 @@ def searxng_search(search: str, page_no: int):
     response = requests.get(endpoint, params=params, timeout=10)
     response.raise_for_status()
     results = response.json().get("results", [])
-    print(json.dumps(results, indent=4))
+    #print(json.dumps(results, indent=4))
     return results
 
 #tutorial https://github.com/NirDiamant/agents-towards-production/blob/main/tutorials/agent-with-tavily-web-access/search-extract-crawl.ipynb
@@ -353,15 +353,48 @@ def tavily_search(search: str, max_results: int):
         #include_domains=["techcrunch.com"],
         topic="news")
         
-    print(json.dumps(search_results, indent=4))
-
+    #print(json.dumps(search_results, indent=4))
     return search_results
+
+async def basic_research_agent(research: str):
+    from openai import AsyncOpenAI
+    from agents.model_settings import ModelSettings
+    
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
+    
+    gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
+    llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
+    deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
+
+    Instructions = "You are a research assistant. Given a search term, you search the web with web_search_tool and \
+    produce a concise summary of the results. The summary must 2-3 paragraphs and less than 300 \
+    words. Capture the main points. Write succintly, no need to have complete sentences or good \
+    grammar. This will be consumed by someone synthesizing a report, so it's vital you capture the \
+    essence and ignore any fluff. Do not include any additional commentary other than the summary itself."
+
+    @function_tool
+    def web_search_tool(search_topic: str):
+        """Tool to search the web"""
+        #return tavily_search(search= search_topic, max_results= 10)
+        return searxng_search(search= search_topic, page_no=1)
+
+    search_agent = Agent(
+        name="Search agent",
+        instructions=Instructions,
+        tools=[web_search_tool],
+        model=gpt_model,
+        model_settings=ModelSettings(tool_choice="required")
+    )
+
+    with trace("Basic Search Agent"):
+        result = await Runner.run(search_agent, research)
+        print(result.final_output)
 
 async def main():
     #push_notification("Starting OpenAI agent examples")
     #send_email(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
     #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    searxng_search("News in Bothell Washington", 1)
+    #searxng_search("News in Bothell Washington", 1)
     #tavily_search("News in Bothell Washington", 20)
     #chat_completion_example()
     #await simple_agent_example()
@@ -369,6 +402,7 @@ async def main():
     #await multiple_agents_example()
     #await multiple_agents_as_tool_example()
     #await multiple_agents_as_tool_and_handoff_and_guardrail_example()
+    await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
     
 
 if __name__ == "__main__":
