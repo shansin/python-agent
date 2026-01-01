@@ -10,4 +10,6 @@ SENDGRID_API_KEY=xxxx
 RESEND_API_KEY=xxxx
 
 OLLAMA_BASE_URL="http://localhost:11434/v1"
+DOCKLING_API_URL = "http://127.0.0.1:5001/v1/convert/file"
 SEARXNG_API_URL="http://localhost:8081"
+TAVILY_API_KEY=xxxx
