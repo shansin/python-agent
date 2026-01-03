@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 from agents import function_tool
 from typing import Dict
 import asyncio
+from agents.mcp import MCPServerStdio
 from utils import push_notification, send_email_sendgrid, send_email_resend, send_html_email, searxng_search, tavily_search
 
 load_dotenv(override=True)
@@ -435,21 +436,50 @@ async def deep_research_agent(research: str, breadth: int):
         await send_email(report)  
         print("Hooray!")
 
+async def mcp_server_example():
+    print("mcp_server_example")
+
+    from agents.model_settings import ModelSettings
+    from pydantic import BaseModel, Field
+    from openai import AsyncOpenAI
+    from agents.model_settings import ModelSettings
+    
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
+    
+    gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
+    llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
+    deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
+
+    Instruction = "You are a friendly assistant. Your job is to use right tool to send push notification to user. The message should say- YOUR SIMPLE MCP SERVER WORKS!"
+
+    #MCP Server instantiation
+    params = {"command": "uv", "args": ["run", "push_mcp_server.py"]}
+    async with MCPServerStdio(params=params, client_session_timeout_seconds=60) as mcp_server:
+
+        agent = Agent(
+            name="PushNotificationAgent", 
+            instructions=Instruction, 
+            model=gpt_model, 
+            mcp_servers=[mcp_server])
+        with trace("PushNotificationAgent"):
+            result = await Runner.run(agent, "Send push notification to user")
+
 
 async def main():
-    push_notification("Starting OpenAI agent examples")
-    send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
-    send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    searxng_search("News in Bothell Washington", 1)
-    tavily_search("News in Bothell Washington", 20)
-    chat_completion_example("Write a story about a cart")
-    await simple_agent_example()
-    await simple_agent_streaming_example()
-    await multiple_agents_example()
-    await multiple_agents_as_tool_example()
-    await multiple_agents_as_tool_and_handoff_and_guardrail_example()
-    await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
-    await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
+    #push_notification("Starting OpenAI agent examples")
+    #send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
+    #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    #searxng_search("News in Bothell Washington", 1)
+    #tavily_search("News in Bothell Washington", 20)
+    #chat_completion_example("Write a story about a cart")
+    #await simple_agent_example()
+    #await simple_agent_streaming_example()
+    #await multiple_agents_example()
+    #await multiple_agents_as_tool_example()
+    #await multiple_agents_as_tool_and_handoff_and_guardrail_example()
+    #await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
+    #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
+    await mcp_server_example()
     
 
 if __name__ == "__main__":

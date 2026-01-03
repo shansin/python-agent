@@ -6,6 +6,9 @@ from agents import function_tool
 import sendgrid
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from tavily import TavilyClient
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 def push_notification(message):
     import requests
@@ -30,7 +33,6 @@ def send_email_sendgrid(to: str, sub: str, body: str, type: str) -> dict:
 
 def send_email_resend(to: List[str], sub: str, from_name: str, from_email: str, body: str) -> dict:
     print(f"Sending email using Resend to {to}, subject: {sub}")
-    import requests
     # from_email has to be configured on dns, xxx@shanup.com is enabled
     headers = {
         "Authorization": f"Bearer {os.environ.get('RESEND_API_KEY')}",
@@ -60,9 +62,6 @@ def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
     return {"status": "success"}
 
 def searxng_search(search: str, page_no: int):
-    # import requests # already imported at top
-    # import json # already imported at top
-    # from pprint import pprint
     print(f"Searching using SearxNG for {search} on page {page_no}")
     endpoint = f"{os.getenv('SEARXNG_API_URL')}/search"
 
@@ -83,9 +82,6 @@ def searxng_search(search: str, page_no: int):
 
 def tavily_search(search: str, max_results: int):
     print(f"Searching using Tavily for {search} with max results {max_results}")
-    # from tavily import TavilyClient # already imported at top
-    # import json
-
     tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
     search_results = tavily_client.search(
         query=search, 
