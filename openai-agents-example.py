@@ -450,20 +450,22 @@ async def mcp_server_example():
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
 
-    Instruction = "You are a friendly assistant. Your job is to use right tool to send push notification to user. The message should say- YOUR SIMPLE MCP SERVER WORKS!"
+    Instruction = "You are a friendly assistant. Your job is to use right tool to send push notification to user and record message sent in output.md file. The message will come from user"
 
-    #MCP Server instantiation
-    params = {"command": "uv", "args": ["run", "push_mcp_server.py"]}
-    async with MCPServerStdio(params=params, client_session_timeout_seconds=60) as mcp_server:
-
-        agent = Agent(
-            name="PushNotificationAgent", 
-            instructions=Instruction, 
-            model=gpt_model, 
-            mcp_servers=[mcp_server])
-        with trace("PushNotificationAgent"):
-            result = await Runner.run(agent, "Send push notification to user")
-
+    #Push MCP Server instantiation
+    push_mcp_server_params = {"command": "uv", "args": ["run", "push_mcp_server.py"]}
+    async with MCPServerStdio(params=push_mcp_server_params, client_session_timeout_seconds=60) as push_mcp_server:
+        #readymade MCP server use
+        sandbox_path = os.path.abspath(os.path.join(os.getcwd(), "sandbox"))
+        files_params = {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", sandbox_path]}
+        async with MCPServerStdio(params=files_params,client_session_timeout_seconds=60) as files_server:
+            agent = Agent(
+                name="PushNotificationAgent", 
+                instructions=Instruction, 
+                model=gpt_model, 
+                mcp_servers=[push_mcp_server, files_server])
+            with trace("PushNotificationAgent"):
+                result = await Runner.run(agent, "Send message- YOUR SIMPLE MCP SERVER WORKS!")
 
 async def main():
     #push_notification("Starting OpenAI agent examples")

@@ -1,4 +1,5 @@
 .env
 /input/
 /output/
+/sandbox/
 __pycache__
