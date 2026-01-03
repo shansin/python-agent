@@ -7,26 +7,16 @@ from openai import AsyncOpenAI
 from agents import function_tool
 from typing import Dict
 import asyncio
+from utils import push_notification, send_email_sendgrid, send_email_resend, send_html_email, searxng_search, tavily_search
 
 load_dotenv(override=True)
 
 ollama_base_url = os.getenv("OLLAMA_BASE_URL")
 
-#push notification function
-def push_notification(message):
-    import requests
-    #pushover setup
-    pushover_user = os.getenv("PUSHOVER_USER")
-    pushover_token = os.getenv("PUSHOVER_TOKEN")
-    pushover_url = "https://api.pushover.net/1/messages.json"
-    print(f"Push notificaiton to phone: {message}")
-    payload = {"user": pushover_user, "token": pushover_token, "message": message}
-    requests.post(pushover_url, data=payload)
-
 #simple chat completion example
-def chat_completion_example():
+def chat_completion_example(question: str):
      openai = OpenAI(base_url=ollama_base_url, api_key="ollama")
-     question = "Write a story about a lonely computer in the style of Dr. Seuss."
+     print(f"Chat completion example, question: {question}")
      
      response = openai.chat.completions.create(
          model="gpt-oss:20b",
@@ -37,6 +27,7 @@ def chat_completion_example():
 
 #agents example (simple)
 async def simple_agent_example():
+    print("simple_agent_example")
     client = AsyncOpenAI(base_url= ollama_base_url, api_key="ollama")
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     agent = Agent(name="JokePusher", instructions="You are a joke teller.", model=llama_model)
@@ -45,46 +36,10 @@ async def simple_agent_example():
         result = await Runner.run(agent, "Tell me a joke about Autonomous AI agents")
         print(result.final_output)
 
-def send_email_sendgrid(to: str, sub: str, body: str, type: str) -> dict:
-    import sendgrid
-    from sendgrid.helpers.mail import Mail, Email, To, Content
-
-    sg = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
-
-    from_email = Email("mailme.shantanu@gmail.com")
-    to_email = To(to)
-    content = Content(type, body)
-    mail = Mail(from_email, to_email, sub, content).get()
-    sg.client.mail.send.post(request_body=mail)
-    return {"status": "success"}
-
-def send_email_resend(to: [str], sub: str, from_name: str, from_email: str, body: str) -> dict:
-    import requests
-    # from_email has to be configured on dns, xxx@shanup.com is enabled
-    headers = {
-        "Authorization": f"Bearer {os.environ.get('RESEND_API_KEY')}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "from": f"{from_name} <{from_email}>",
-        "to": to,
-        "subject": sub,
-        "html": f"<p>{body}</p>"  # Body wrapped in <p> tags for HTML format
-    }
-    
-    # Send email using Resend API
-    response = requests.post("https://api.resend.com/emails", json=payload, headers=headers)
-    
-    # Check if the request was successful
-    if response.ok:
-        return {"status": "success"}
-    else:
-        return {"status": "failure", "message": response.text}
-
 #agents example (simple streaming)
 #traces at: https://platform.openai.com/logs?api=traces 
 async def simple_agent_streaming_example():
+    print("simple_agent_streaming_example")
     from openai.types.responses import ResponseTextDeltaEvent
 
     client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
@@ -101,6 +56,7 @@ async def simple_agent_streaming_example():
 #agents example (multiple agents)
 #traces at: https://platform.openai.com/logs?api=traces 
 async def multiple_agents_example():
+    print("multiple_agents_example")
     client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -156,6 +112,7 @@ async def multiple_agents_example():
 #agents example (multiple agents as tool)
 #traces at: https://platform.openai.com/logs?api=traces 
 async def multiple_agents_as_tool_example():
+    print("multiple_agents_as_tool_example")
     client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -213,6 +170,7 @@ def send_cold_sales_email(body: str):
     send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Cold Sales Email", body=body, type="text/plain")
 
 async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
+    print("multiple_agents_as_tool_and_handoff_and_guardrail_example")
     client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -310,52 +268,8 @@ async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
         result = await Runner.run(sales_manager, message)
         print(result.final_output)
 
-@function_tool
-def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
-    """ Send out an email with the given subject and HTML body to all sales prospects """
-    send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Cold Sales Email", body=html_body, type="text/html")
-    return {"status": "success"}
-
-
-def searxng_search(search: str, page_no: int):
-    import requests
-    import json
-    from pprint import pprint
-
-    endpoint = f"{os.getenv("SEARXNG_API_URL")}/search"
-
-    params = {
-        "q": search,
-        "format": "json",
-        "categories": "general",
-        "language": "en",
-        "safesearch": 0,
-        "pageno": page_no
-    }
-
-    response = requests.get(endpoint, params=params, timeout=10)
-    response.raise_for_status()
-    results = response.json().get("results", [])
-    #print(json.dumps(results, indent=4))
-    return results
-
-#tutorial https://github.com/NirDiamant/agents-towards-production/blob/main/tutorials/agent-with-tavily-web-access/search-extract-crawl.ipynb
-def tavily_search(search: str, max_results: int):
-    from tavily import TavilyClient
-    import json
-    tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-    search_results = tavily_client.search(
-        query=search, 
-        max_results=max_results,
-        time_range="week",
-        include_raw_content=True,
-        #include_domains=["techcrunch.com"],
-        topic="news")
-        
-    #print(json.dumps(search_results, indent=4))
-    return search_results
-
 async def basic_research_agent(research: str):
+    print("basic_research_agent")
     from openai import AsyncOpenAI
     from agents.model_settings import ModelSettings
     
@@ -390,6 +304,7 @@ async def basic_research_agent(research: str):
         print(result.final_output)
 
 async def deep_research_agent(research: str, breadth: int):
+    print("deep_research_agent")
     from agents.model_settings import ModelSettings
     from pydantic import BaseModel, Field
     from openai import AsyncOpenAI
@@ -522,18 +437,18 @@ async def deep_research_agent(research: str, breadth: int):
 
 
 async def main():
-    #push_notification("Starting OpenAI agent examples")
-    #send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.")
-    #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    #searxng_search("News in Bothell Washington", 1)
-    #tavily_search("News in Bothell Washington", 20)
-    #chat_completion_example()
-    #await simple_agent_example()
-    #await simple_agent_streaming_example()
-    #await multiple_agents_example()
-    #await multiple_agents_as_tool_example()
-    #await multiple_agents_as_tool_and_handoff_and_guardrail_example()
-    #await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
+    push_notification("Starting OpenAI agent examples")
+    send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
+    send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    searxng_search("News in Bothell Washington", 1)
+    tavily_search("News in Bothell Washington", 20)
+    chat_completion_example("Write a story about a cart")
+    await simple_agent_example()
+    await simple_agent_streaming_example()
+    await multiple_agents_example()
+    await multiple_agents_as_tool_example()
+    await multiple_agents_as_tool_and_handoff_and_guardrail_example()
+    await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
     await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
     
 
