@@ -436,7 +436,7 @@ async def deep_research_agent(research: str, breadth: int):
         await send_email(report)  
         print("Hooray!")
 
-async def mcp_server_example():
+async def mcp_server_example(query: str):
     print("mcp_server_example")
 
     from agents.model_settings import ModelSettings
@@ -450,7 +450,7 @@ async def mcp_server_example():
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
 
-    Instruction = "You are a friendly assistant. Your job is to use right tool to send push notification to user and record message sent in output.md file. The message will come from user"
+    Instruction = "You are able to search the web for information and briefly summarize the takeaways. Your job is to use right tool to search the web, summarize the takeaways in research.md file and send push notification to user when research is completed"
 
     #Push MCP Server instantiation
     push_mcp_server_params = {"command": "uv", "args": ["run", "push_mcp_server.py"]}
@@ -459,13 +459,18 @@ async def mcp_server_example():
         sandbox_path = os.path.abspath(os.path.join(os.getcwd(), "sandbox"))
         files_params = {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", sandbox_path]}
         async with MCPServerStdio(params=files_params,client_session_timeout_seconds=60) as files_server:
-            agent = Agent(
-                name="PushNotificationAgent", 
-                instructions=Instruction, 
-                model=gpt_model, 
-                mcp_servers=[push_mcp_server, files_server])
-            with trace("PushNotificationAgent"):
-                result = await Runner.run(agent, "Send message- YOUR SIMPLE MCP SERVER WORKS!")
+            env = {"BRAVE_API_KEY": os.getenv("BRAVE_API_KEY")}
+            brave_params = {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-brave-search"], "env": env}
+            #readymade MCP server use
+            async with MCPServerStdio(params=brave_params, client_session_timeout_seconds=30) as brave_server:
+                agent = Agent(
+                    name="PushNotificationAgent", 
+                    instructions=Instruction, 
+                    model=gpt_model, 
+                    mcp_servers=[push_mcp_server, files_server, brave_server])
+                with trace("PushNotificationAgent"):
+                    result = await Runner.run(agent, query)
+                print(result)
 
 async def main():
     #push_notification("Starting OpenAI agent examples")
@@ -481,7 +486,7 @@ async def main():
     #await multiple_agents_as_tool_and_handoff_and_guardrail_example()
     #await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
     #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
-    await mcp_server_example()
+    await mcp_server_example("Top Agentic AI frameworks to look forward to in 2026")
     
 
 if __name__ == "__main__":
