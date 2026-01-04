@@ -15,7 +15,7 @@ load_dotenv(override=True)
 ollama_base_url = os.getenv("OLLAMA_BASE_URL")
 
 #simple chat completion example
-def chat_completion_example(question: str):
+def chat_completion(question: str):
      openai = OpenAI(base_url=ollama_base_url, api_key="ollama")
      print(f"Chat completion example, question: {question}")
      
@@ -27,8 +27,8 @@ def chat_completion_example(question: str):
      print(response.choices[0].message.content)
 
 #agents example (simple)
-async def simple_agent_example():
-    print("simple_agent_example")
+async def simple_agent():
+    print("simple_agent")
     client = AsyncOpenAI(base_url= ollama_base_url, api_key="ollama")
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     agent = Agent(name="JokePusher", instructions="You are a joke teller.", model=llama_model)
@@ -39,8 +39,8 @@ async def simple_agent_example():
 
 #agents example (simple streaming)
 #traces at: https://platform.openai.com/logs?api=traces 
-async def simple_agent_streaming_example():
-    print("simple_agent_streaming_example")
+async def simple_agent_streaming():
+    print("simple_agent_streaming")
     from openai.types.responses import ResponseTextDeltaEvent
 
     client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
@@ -56,8 +56,8 @@ async def simple_agent_streaming_example():
 
 #agents example (multiple agents)
 #traces at: https://platform.openai.com/logs?api=traces 
-async def multiple_agents_example():
-    print("multiple_agents_example")
+async def multiple_agents():
+    print("multiple_agents")
     client = AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -112,8 +112,8 @@ async def multiple_agents_example():
 
 #agents example (multiple agents as tool)
 #traces at: https://platform.openai.com/logs?api=traces 
-async def multiple_agents_as_tool_example():
-    print("multiple_agents_as_tool_example")
+async def multiple_agents_as_tool():
+    print("multiple_agents_as_tool")
     client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -170,8 +170,8 @@ def send_cold_sales_email(body: str):
     #above line acts as description for the tool to llm
     send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Cold Sales Email", body=body, type="text/plain")
 
-async def multiple_agents_as_tool_and_handoff_and_guardrail_example():
-    print("multiple_agents_as_tool_and_handoff_and_guardrail_example")
+async def multiple_agents_as_tool_and_handoff_and_guardrail():
+    print("multiple_agents_as_tool_and_handoff_and_guardrail")
     client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
@@ -436,8 +436,8 @@ async def deep_research_agent(research: str, breadth: int):
         await send_email(report)  
         print("Hooray!")
 
-async def mcp_server_example(query: str):
-    print("mcp_server_example")
+async def mcp_server(query: str):
+    print("mcp_server")
 
     from agents.model_settings import ModelSettings
     from pydantic import BaseModel, Field
@@ -473,20 +473,20 @@ async def mcp_server_example(query: str):
                 print(result)
 
 async def main():
-    #push_notification("Starting OpenAI agent examples")
-    #send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
-    #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    #searxng_search("News in Bothell Washington", 1)
-    #tavily_search("News in Bothell Washington", 20)
-    #chat_completion_example("Write a story about a cart")
-    #await simple_agent_example()
-    #await simple_agent_streaming_example()
-    #await multiple_agents_example()
-    #await multiple_agents_as_tool_example()
-    #await multiple_agents_as_tool_and_handoff_and_guardrail_example()
-    #await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
-    #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
-    await mcp_server_example("Top Agentic AI frameworks to look forward to in 2026")
+    push_notification("Starting OpenAI agent examples")
+    send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
+    send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    searxng_search("News in Bothell Washington", 1)
+    tavily_search("News in Bothell Washington", 20)
+    chat_completion("Write a story about a cart")
+    await simple_agent()
+    await simple_agent_streaming()
+    await multiple_agents()
+    await multiple_agents_as_tool()
+    await multiple_agents_as_tool_and_handoff_and_guardrail()
+    await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
+    await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
+    await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
     
 
 if __name__ == "__main__":

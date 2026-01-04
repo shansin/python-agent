@@ -1,4 +1,3 @@
-from yt_dlp.utils import base_url
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -16,7 +15,6 @@ pipeline_options.accelerator_options = AcceleratorOptions(
 load_dotenv(override=True)
 
 # Configuration
-dockling_api_url = os.getenv("DOCKLING_API_URL")
 input_folder = "input"
 output_folder = "output"
 
