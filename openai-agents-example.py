@@ -472,6 +472,46 @@ async def mcp_server(query: str):
                     result = await Runner.run(agent, query)
                 print(result)
 
+async def whatsapp_mcp_server(query: str):
+    print("whatsapp_mcp_server")
+
+    from agents.model_settings import ModelSettings
+    from pydantic import BaseModel, Field
+    from openai import AsyncOpenAI
+    from agents.model_settings import ModelSettings
+    
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
+    
+    gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
+    llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
+    deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
+
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    
+    now = datetime.now(ZoneInfo("America/Los_Angeles"))
+    current_time = now.strftime("%I:%M %p PST, %B %d, %Y")
+    
+    Instruction = f"Date and time right now is {current_time}. You are able interact with whatsapp though whatsapp mcp server. Use this to fullfil user requests. Don not ask followup questions. Just do the task and finish."
+
+    #Push MCP Server instantiation
+    whatsapp_mcp_server_params = {"command": "uv", "args": [
+        "--directory",
+        "/home/shant/git_linux/whatsapp-mcp/whatsapp-mcp-server",
+        "run", 
+        "main.py"]
+        }
+    async with MCPServerStdio(params=whatsapp_mcp_server_params, client_session_timeout_seconds=120) as whatsapp_mcp_server:
+        #readymade MCP server use
+        agent = Agent(
+            name="WhatsappAgent", 
+            instructions=Instruction, 
+            model=gpt_model, 
+            mcp_servers=[whatsapp_mcp_server])
+        with trace("WhatsappAgent"):
+            result = await Runner.run(agent, query)
+        print(result)
+
 async def main():
     push_notification("Starting OpenAI agent examples")
     send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
@@ -487,6 +527,7 @@ async def main():
     await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
     await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
     await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
+    await whatsapp_mcp_server("get all messages sent in last 24 hours")
     
 
 if __name__ == "__main__":
