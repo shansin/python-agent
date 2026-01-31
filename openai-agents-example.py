@@ -510,24 +510,72 @@ async def whatsapp_mcp_server(query: str):
             mcp_servers=[whatsapp_mcp_server])
         with trace("WhatsappAgent"):
             result = await Runner.run(agent, query)
-        print(result)
+        print(result.final_output)
+
+
+async def google_sheets_mcp_interactive():
+    print("google_sheets_mcp_interactive")
+    
+    from agents.model_settings import ModelSettings
+    from pydantic import BaseModel, Field
+    from openai import AsyncOpenAI
+    from agents.model_settings import ModelSettings
+    
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
+    
+    gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
+    llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
+    deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
+
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    
+    now = datetime.now(ZoneInfo("America/Los_Angeles"))
+    current_time = now.strftime("%I:%M %p PST, %B %d, %Y")
+    
+    Instruction = f"""Date and time right now is {current_time}. 
+    
+    You are polite and professional restaurant manager. Your job is to help customers place an order for food.
+    
+    You are able interact with google sheet https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0 though google sheets mcp server. This sheet contains all the information about Inventory, Orders and FAQs.
+    
+    Please use this to fullfill user requests. Don't assume anything. Ask clarifying questions if you are uncertain."""
+
+    #Push MCP Server instantiation
+    google_sheets_mcp_server_params = {"command": "uvx", "args": ["mcp-google-sheets@latest"], "env": {"GOOGLE_APPLICATION_CREDENTIALS": "/home/shant/git_linux/python-agent/service-account.json", "DRIVE_FOLDER_ID":"1GMR98gr02rkum5fPWvs94AtZCcS-Lrm9"}}
+    async with MCPServerStdio(params=google_sheets_mcp_server_params, client_session_timeout_seconds=60) as google_sheets_mcp_server:
+        while(True):
+            query = input("Enter your query: ")
+            if query == "exit":
+                break
+            #readymade MCP server use
+            agent = Agent(
+                name="GoogleSheetsAgent", 
+                instructions=Instruction, 
+                model=gpt_model, 
+                mcp_servers=[google_sheets_mcp_server])
+            with trace("GoogleSheetsAgent"):
+                result = await Runner.run(agent, query)
+            print(result.final_output)
+
 
 async def main():
-    push_notification("Starting OpenAI agent examples")
-    send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
-    send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    searxng_search("News in Bothell Washington", 1)
-    tavily_search("News in Bothell Washington", 20)
-    chat_completion("Write a story about a cart")
-    await simple_agent()
-    await simple_agent_streaming()
-    await multiple_agents()
-    await multiple_agents_as_tool()
-    await multiple_agents_as_tool_and_handoff_and_guardrail()
-    await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
-    await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
-    await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
-    await whatsapp_mcp_server("get all messages sent in last 24 hours")
+    #push_notification("Starting OpenAI agent examples")
+    #send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
+    #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    ##searxng_search("News in Bothell Washington", 1)
+    #tavily_search("News in Bothell Washington", 20)
+    #chat_completion("Write a story about a cart")
+    #await simple_agent()
+    #await simple_agent_streaming()
+    #await multiple_agents()
+    #await multiple_agents_as_tool()
+    #await multiple_agents_as_tool_and_handoff_and_guardrail()
+    #await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
+    #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
+    #await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
+    #await whatsapp_mcp_server("get all messages sent in last 24 hours")
+    await google_sheets_mcp_interactive()
     
 
 if __name__ == "__main__":
