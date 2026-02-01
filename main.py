@@ -526,6 +526,7 @@ async def google_sheets_mcp_interactive():
     gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
     llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
     deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
+    glm_model = OpenAIChatCompletionsModel(model="glm-4.7-flash:q4_K_M", openai_client=client)
 
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -535,11 +536,16 @@ async def google_sheets_mcp_interactive():
     
     Instruction = f"""Date and time right now is {current_time}. 
     
-    You are polite and professional restaurant manager. Your job is to help customers place an order for food.
+    You are polite and professional restaurant manager. Your job is to take customer's order for food.
     
-    You are able interact with google sheet https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0 though google sheets mcp server. This sheet contains all the information about Inventory, Orders and FAQs.
+    You are able to interact with google sheet https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0 though google sheets mcp server. This sheet contains all the information about Inventory, Orders and FAQs.
     
-    Please use this to fullfill user requests."""
+    For that sheet, tabs have certain meaning:
+    - Inventory: Lists food items with their prices, quantity available, and description.
+    - Orders: Lists all the orders placed by customers. You should update this tab and quantity available in inventory when a new order is placed. Customers phone number is available to you in "sender" field, don't ask for it.
+    - FAQs: Lists all the frequently asked questions and their answers. You should use this to answer user questions.
+    
+    Please use this to help user full fill order."""
 
     #Push MCP Server instantiation
     google_sheets_mcp_server_params = {"command": "uvx", "args": ["mcp-google-sheets@latest"], "env": {"GOOGLE_APPLICATION_CREDENTIALS": "./service-account.json", "DRIVE_FOLDER_ID":"1GMR98gr02rkum5fPWvs94AtZCcS-Lrm9"}}
@@ -552,10 +558,10 @@ async def google_sheets_mcp_interactive():
             agent = Agent(
                 name="GoogleSheetsAgent", 
                 instructions=Instruction, 
-                model=gpt_model, 
+                model=glm_model, 
                 mcp_servers=[google_sheets_mcp_server])
             with trace("GoogleSheetsAgent"):
-                result = await Runner.run(agent, query)
+                result = await Runner.run(agent, query, max_turns=20)
             print(result.final_output)
 
 
@@ -576,9 +582,9 @@ async def main():
     #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
     #await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
     #await whatsapp_mcp_server("get all messages sent in last 24 hours")
-    #await google_sheets_mcp_interactive()
-    await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "A", "FAQ")
-    await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "B", "FAQ")
+    #await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "A", "FAQ")
+    #await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "B", "FAQ")
+    await google_sheets_mcp_interactive()
     
 
 if __name__ == "__main__":
