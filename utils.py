@@ -55,6 +55,60 @@ def send_email_resend(to: List[str], sub: str, from_name: str, from_email: str, 
     else:
         return {"status": "failure", "message": response.text}
 
+async def google_sheets_get_col(sheet_url: str, column: str, tab_name: str = None):
+    """Fetch and print all rows in a specified column of a Google Sheet.
+    
+    Args:
+        sheet_url: The Google Sheets URL
+        column: The column letter (e.g., 'A', 'B')
+        tab_name: Optional worksheet/tab name. Uses first sheet if not provided.
+    """
+    import re
+    import gspread
+    from google.oauth2.service_account import Credentials
+    
+    print(f"google_sheets_get_col: Fetching column {column} from {sheet_url}")
+    
+    # Extract spreadsheet ID from URL
+    match = re.search(r'/spreadsheets/d/([a-zA-Z0-9-_]+)', sheet_url)
+    if not match:
+        print("Error: Could not extract spreadsheet ID from URL")
+        return
+    
+    spreadsheet_id = match.group(1)
+    
+    # Define the scopes
+    scopes = [
+        'https://www.googleapis.com/auth/spreadsheets.readonly',
+        'https://www.googleapis.com/auth/drive.readonly'
+    ]
+    
+    # Load credentials from service account file
+    credentials = Credentials.from_service_account_file(
+        './service_account.json',
+        scopes=scopes
+    )
+    
+    # Authorize gspread with the credentials
+    gc = gspread.authorize(credentials)
+    
+    # Open the spreadsheet by ID
+    spreadsheet = gc.open_by_key(spreadsheet_id)
+    
+    # Get worksheet by name or use first sheet
+    if tab_name:
+        worksheet = spreadsheet.worksheet(tab_name)
+    else:
+        worksheet = spreadsheet.sheet1
+    
+    # Get all values in the specified column
+    col_values = worksheet.col_values(ord(column.upper()) - ord('A') + 1)
+    
+    # Print all rows
+    print(f"\nColumn {column} values:")
+    for i, value in enumerate(col_values, 1):
+        print(f"{i}. {value}")
+
 @function_tool
 def send_html_email(subject: str, html_body: str) -> Dict[str, str]:
     """ Send out an email with the given subject and HTML body to all sales prospects """

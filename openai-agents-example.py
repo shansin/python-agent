@@ -8,7 +8,7 @@ from agents import function_tool
 from typing import Dict
 import asyncio
 from agents.mcp import MCPServerStdio
-from utils import push_notification, send_email_sendgrid, send_email_resend, send_html_email, searxng_search, tavily_search
+from utils import push_notification, send_email_sendgrid, send_email_resend, send_html_email, searxng_search, tavily_search, google_sheets_get_col
 
 load_dotenv(override=True)
 
@@ -539,10 +539,10 @@ async def google_sheets_mcp_interactive():
     
     You are able interact with google sheet https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0 though google sheets mcp server. This sheet contains all the information about Inventory, Orders and FAQs.
     
-    Please use this to fullfill user requests. Don't assume anything. Ask clarifying questions if you are uncertain."""
+    Please use this to fullfill user requests."""
 
     #Push MCP Server instantiation
-    google_sheets_mcp_server_params = {"command": "uvx", "args": ["mcp-google-sheets@latest"], "env": {"GOOGLE_APPLICATION_CREDENTIALS": "/home/shant/git_linux/python-agent/service-account.json", "DRIVE_FOLDER_ID":"1GMR98gr02rkum5fPWvs94AtZCcS-Lrm9"}}
+    google_sheets_mcp_server_params = {"command": "uvx", "args": ["mcp-google-sheets@latest"], "env": {"GOOGLE_APPLICATION_CREDENTIALS": "./service-account.json", "DRIVE_FOLDER_ID":"1GMR98gr02rkum5fPWvs94AtZCcS-Lrm9"}}
     async with MCPServerStdio(params=google_sheets_mcp_server_params, client_session_timeout_seconds=60) as google_sheets_mcp_server:
         while(True):
             query = input("Enter your query: ")
@@ -557,6 +557,7 @@ async def google_sheets_mcp_interactive():
             with trace("GoogleSheetsAgent"):
                 result = await Runner.run(agent, query)
             print(result.final_output)
+
 
 
 async def main():
@@ -575,7 +576,9 @@ async def main():
     #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
     #await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
     #await whatsapp_mcp_server("get all messages sent in last 24 hours")
-    await google_sheets_mcp_interactive()
+    #await google_sheets_mcp_interactive()
+    await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "A", "FAQ")
+    await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "B", "FAQ")
     
 
 if __name__ == "__main__":
