@@ -497,7 +497,7 @@ async def whatsapp_mcp_server(query: str):
     #Push MCP Server instantiation
     whatsapp_mcp_server_params = {"command": "uv", "args": [
         "--directory",
-        "/home/shant/git_linux/whatsapp-mcp/whatsapp-mcp-server",
+        "/home/shsin/git_linux/whatsapp-mcp/whatsapp-mcp-server",
         "run", 
         "main.py"]
         }
@@ -565,26 +565,113 @@ async def google_sheets_mcp_interactive():
             print(result.final_output)
 
 
+async def google_interactive():
+    """
+    Interactive Google Workspace assistant using the local Workspace MCP server.
+    Capabilities: Docs, Drive, Calendar, Sheets, Slides, Gmail, Chat.
+    """
+    print("google_interactive")
+    
+    from agents.model_settings import ModelSettings
+    from pydantic import BaseModel, Field
+    from openai import AsyncOpenAI
+    from agents.model_settings import ModelSettings
+    
+    client = AsyncOpenAI(base_url=ollama_base_url, api_key="ollama")
+    
+    gpt_model = OpenAIChatCompletionsModel(model="gpt-oss:20b", openai_client=client)
+    llama_model = OpenAIChatCompletionsModel(model="llama3.1:8b", openai_client=client)
+    deepseek_model = OpenAIChatCompletionsModel(model="deepseek-r1:8b", openai_client=client)
+    glm_model = OpenAIChatCompletionsModel(model="glm-4.7-flash:q4_K_M", openai_client=client)
+
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    
+    now = datetime.now(ZoneInfo("America/Los_Angeles"))
+    current_time = now.strftime("%I:%M %p PST, %B %d, %Y")
+    
+    Instruction = f"""Date and time right now is {current_time}. 
+    
+    You are a powerful Google Workspace assistant. You have access to the user's Google Account data through a local MCP server.
+    
+    You can help with:
+    - **Google Docs**: Create, read, find, update (append/replace/insert), and move documents.
+    - **Google Drive**: Find/create folders, search for files, and download files.
+    - **Google Calendar**: List calendars, view events, create/update/delete events, respond to invites, and find free time.
+    - **Google Sheets**: Read content, get ranges, find spreadsheets, and get metadata.
+    - **Google Slides**: Read text, find presentations, and get metadata.
+    - **Gmail**: Search threads, draft/send emails, manage labels.
+    - **Google Chat**: List spaces, send messages, get messages, and send DMs.
+    
+    **Important Behavioral Rules:**
+    1. **User Context**: Always respect the user's timezone ({now.tzinfo}).
+    2. **Safety**: 
+       - Always PREVIEW write operations (creating events, sending emails, editing docs) before executing them. 
+       - Ask for explicit user confirmation for destructive actions or sending messages.
+    3. **Transparency**: Explain what you are doing. If you need to chain multiple tools (not typical, but if needed), explain the plan.
+    4. **Tool Usage**: 
+       - Use `drive_search` to find files/folders if you don't have IDs.
+       - Use specific tools for specific apps (e.g., `docs_create` for Docs).
+       - Don't halluncinate IDs. Search first.
+    
+    Be concise, helpful, and professional.
+    """
+
+    # Local Workspace MCP Server
+    # Path: /home/shant/git_linux/workspace/workspace-server
+    workspace_server_path = "/home/shant/git_linux/workspace/workspace-server/dist/index.js"
+    
+    workspace_mcp_server_params = {
+        "command": "node",
+        "args": [workspace_server_path, "--use-dot-names"],
+        # Note: We ARE using --use-dot-names, so tools will be docs.create etc.
+        "env": {
+            "GEMINI_CLI_WORKSPACE_FORCE_FILE_STORAGE": "true",
+            "PATH": os.environ["PATH"] # Inherit PATH
+        }
+    }
+    
+    async with MCPServerStdio(params=workspace_mcp_server_params, client_session_timeout_seconds=300) as workspace_mcp_server:
+        print("\nGoogle Workspace Interactive Assistant")
+        print("Type 'exit' to quit.\n")
+        
+        while(True):
+            query = input("Enter your query: ")
+            if query.lower() == "exit":
+                break
+            
+            agent = Agent(
+                name="GoogleWorkspaceAgent", 
+                instructions=Instruction, 
+                model=glm_model, 
+                mcp_servers=[workspace_mcp_server])
+            
+            with trace("GoogleWorkspaceAgent"):
+                result = await Runner.run(agent, query, max_turns=30)
+            print(f"\n{result.final_output}\n")
+
+
 
 async def main():
-    #push_notification("Starting OpenAI agent examples")
-    #send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
-    #send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
-    ##searxng_search("News in Bothell Washington", 1)
-    #tavily_search("News in Bothell Washington", 20)
-    #chat_completion("Write a story about a cart")
-    #await simple_agent()
-    #await simple_agent_streaming()
-    #await multiple_agents()
-    #await multiple_agents_as_tool()
-    #await multiple_agents_as_tool_and_handoff_and_guardrail()
-    #await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
-    #await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
-    #await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
-    #await whatsapp_mcp_server("get all messages sent in last 24 hours")
-    #await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "A", "FAQ")
-    #await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "B", "FAQ")
-    await google_sheets_mcp_interactive()
+    push_notification("Starting OpenAI agent examples")
+    send_email_sendgrid(to="mailme.shantanu@gmail.com", sub="Starting OpenAI agent examples", body="The OpenAI agent examples script has started running.", type="text/plain")
+    send_email_resend(to=["mailme.shantanu@gmail.com","dixit.upasanaitbhu@gmail.com"], sub="Welcome to ShanUP.com", body="Mark this date as when it started. \n<a href=\"https://www.shanup.com/\">Visit ShanUP.com!</a>", from_name="Shantanu", from_email="Shantanu@shanup.com")
+    #searxng_search("News in Bothell Washington", 1)
+    tavily_search("News in Bothell Washington", 20)
+    chat_completion("Write a story about a cart")
+    await simple_agent()
+    await simple_agent_streaming()
+    await multiple_agents()
+    await multiple_agents_as_tool()
+    await multiple_agents_as_tool_and_handoff_and_guardrail()
+    await basic_research_agent("Top Agentic AI frameworks to look forward to in 2026")
+    await deep_research_agent("Top Agentic AI frameworks to look forward to in 2026", 3)
+    await mcp_server("Top Agentic AI frameworks to look forward to in 2026")
+    await whatsapp_mcp_server("get all messages sent in last 24 hours")
+    await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "A", "FAQ")
+    await google_sheets_get_col("https://docs.google.com/spreadsheets/d/17xyB3frdJsuJLTpBxYYXT1Mtr_edLOhOAL3dJHzJrTo/edit?gid=0#gid=0", "B", "FAQ")
+    #await google_sheets_mcp_interactive()
+    #await google_interactive()
     
 
 if __name__ == "__main__":

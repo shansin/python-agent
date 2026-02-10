@@ -4,3 +4,4 @@
 /sandbox/
 __pycache__
 service_account.json
+gcp-oauth.keys.json
