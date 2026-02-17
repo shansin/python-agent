@@ -1,20 +1,32 @@
 import ollama
 import time
 import json
+import argparse
+import os
 from datetime import datetime
 
 
 class ModelTester:
-    def __init__(self):
+    def __init__(self, host=None):
         #self.test_message = "Just say 'Hello, this is a test response.'"
         self.test_message = "Write a story about a cart"
         self.test_results = {}
         self.start_time = time.time()
+        
+        if host:
+            if hasattr(ollama, 'Client'):
+                self.client = ollama.Client(host=host)
+            else:
+                # Fallback for older versions or if Client not found
+                os.environ["OLLAMA_HOST"] = host
+                self.client = ollama
+        else:
+            self.client = ollama
 
     def get_chat_models(self):
         """Get list of chat models (exclude embeddings)"""
         try:
-            response = ollama.list()
+            response = self.client.list()
             chat_models = []
 
             for model in response.models:
@@ -54,7 +66,7 @@ class ModelTester:
 
             print("💭 Thinking...")
 
-            stream = ollama.chat(model=model_name, messages=messages, stream=True)
+            stream = self.client.chat(model=model_name, messages=messages, stream=True)
 
             total_tokens = 0
             eval_duration_ns = 0
@@ -219,5 +231,9 @@ class ModelTester:
 
 
 if __name__ == "__main__":
-    tester = ModelTester()
+    parser = argparse.ArgumentParser(description="Test local Ollama models")
+    parser.add_argument("--host", default="http://localhost:11434", help="Ollama host URL (e.g., http://localhost:11434)")
+    args = parser.parse_args()
+
+    tester = ModelTester(host=args.host)
     results = tester.test_all_models()

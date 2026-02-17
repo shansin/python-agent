@@ -618,8 +618,8 @@ async def google_interactive():
     """
 
     # Local Workspace MCP Server
-    # Path: /home/shant/git_linux/workspace/workspace-server
-    workspace_server_path = "/home/shant/git_linux/workspace/workspace-server/dist/index.js"
+    # Path: /home/shsin/git_linux/workspace/workspace-server
+    workspace_server_path = "/home/shsin/git_linux/workspace/workspace-server/dist/index.js"
     
     workspace_mcp_server_params = {
         "command": "node",
