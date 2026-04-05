@@ -189,19 +189,22 @@ class ModelTester:
         total_elapsed = int(time.time() - self.start_time)
         total_minutes = total_elapsed // 60
 
-        print("\n" + "=" * 60)
-        print("🏁 COMPREHENSIVE TEST COMPLETE")
-        print(f"🕐 Completed at: {datetime.now().strftime('%H:%M:%S')}")
-        print(f"⏱️  Total time: {total_minutes} minutes")
-        print("=" * 60)
-        print(f"📊 SUMMARY:")
-        print(f"  ✅ Successful: {successful_tests}/{len(models)}")
-        print(f"  ❌ Failed: {failed_tests}/{len(models)}")
-        print(f"  📈 Success rate: {successful_tests / len(models) * 100:.1f}%")
-        print("=" * 60)
+        output_lines = []
+        output_lines.append("\n" + "=" * 60)
+        output_lines.append("🏁 COMPREHENSIVE TEST COMPLETE")
+        output_lines.append(f"🕐 Completed at: {datetime.now().strftime('%H:%M:%S')}")
+        output_lines.append(f"⏱️  Total time: {total_minutes} minutes")
+        output_lines.append("=" * 60)
+        output_lines.append(f"📊 SUMMARY:")
+        output_lines.append(f"  ✅ Successful: {successful_tests}/{len(models)}")
+        output_lines.append(f"  ❌ Failed: {failed_tests}/{len(models)}")
+        # Handle zero division if len(models) is 0, though we return early if not models earlier
+        success_rate = successful_tests / len(models) * 100 if len(models) > 0 else 0
+        output_lines.append(f"  📈 Success rate: {success_rate:.1f}%")
+        output_lines.append("=" * 60)
 
         # Show detailed results
-        print("\n📋 DETAILED RESULTS:")
+        output_lines.append("\n📋 DETAILED RESULTS:")
         for model_name, result in self.test_results.items():
             status_emoji = (
                 "✅"
@@ -210,22 +213,36 @@ class ModelTester:
                 if result["status"] == "ERROR"
                 else "⏰"
             )
-            print(f"\n{status_emoji} {model_name}")
-            print(f"   Status: {result['status']}")
-            print(f"   Time: {result['response_time']}")
+            output_lines.append(f"\n{status_emoji} {model_name}")
+            output_lines.append(f"   Status: {result['status']}")
+            output_lines.append(f"   Time: {result['response_time']}")
             if result.get('tokens_per_second'):
-                print(f"   Tokens/sec: {result['tokens_per_second']}")
+                output_lines.append(f"   Tokens/sec: {result['tokens_per_second']}")
             if result.get('total_tokens'):
-                print(f"   Total tokens: {result['total_tokens']}")
+                output_lines.append(f"   Total tokens: {result['total_tokens']}")
             if result["error"]:
-                print(f"   Error: {result['error']}")
+                output_lines.append(f"   Error: {result['error']}")
             if result["response"]:
                 response_preview = (
                     result["response"][:150] + "..."
                     if len(result["response"]) > 150
                     else result["response"]
                 )
-                print(f"   Response: {response_preview}")
+                output_lines.append(f"   Response: {response_preview}")
+
+        final_output = "\n".join(output_lines)
+        print(final_output)
+
+        # Write to file
+        os.makedirs("output", exist_ok=True)
+        filename = datetime.now().strftime("model_benchmark_%Y_%m_%d__%H_%M.txt")
+        filepath = os.path.join("output", filename)
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(final_output)
+            print(f"\n💾 Results saved to: {filepath}")
+        except Exception as e:
+            print(f"\n❌ Failed to save results to file: {e}")
 
         return self.test_results
 
